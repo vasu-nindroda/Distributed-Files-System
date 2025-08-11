@@ -223,6 +223,9 @@ void handleDownlf(int con_sd, char* commandArgs[]){
         write(con_sd, response, strlen(response));
         return;
     }
+    //Send initial success to server
+    snprintf(response, MAX_BUFFER, "Success: File retrieved from target server");
+    write(con_sd, response, strlen(response));
     //Open file locally
     int fd = open(commandArgs[1], O_RDONLY);
     //Error if open fails

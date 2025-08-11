@@ -85,7 +85,6 @@ int validateFileExist(char *filename){
     struct stat st;
     //Return 0, if file does not exist
     if(stat(filename, &st) != 0){
-        perror(filename);
         return 0;
     }
     //Return 1 if file not exist
@@ -354,13 +353,26 @@ int main(int argc, char *argv[]){
         //Copy the user input to commandToSend
         char commandToSend[MAX_BUFFER];
         strcpy(commandToSend, input);
+        int success = 1;
         //If command is uploadf
         if(strcmp(commandArgs[0], "uploadf") == 0){
             //Validate the enterd file exist in client pwd
             for(int i = 1; i < count - 1; i++){
                 if(!validateFileExist(commandArgs[i])){
-                    continue;
+                    printf("File %s does not exist\n", commandArgs[i]);
+                    success = false;
+                    break;
                 }
+            }
+            if(!success){
+                //Free commandArgs
+                for(int i = 0; i < count; i++){
+                    if(commandArgs[i]) {
+                        free(commandArgs[i]);
+                        commandArgs[i] = NULL;
+                    }
+                }
+                continue;
             }
             //Frist send the command to server using write
             if(write(client_sd, input, strlen(input)) <= 0){

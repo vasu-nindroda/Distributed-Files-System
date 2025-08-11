@@ -152,6 +152,23 @@ int communicateWithServer(char* commandType, char *filePath, char *fileBuffer, i
             write(main_clinet_sd, response, strlen(response));
             return ERROR_NETWORK;
         }
+        //Read initial response from server
+        int responseLen = read(client_sd, response, MAX_BUFFER - 1);
+        //If there is error in reading response from server
+        if(responseLen <= 0){
+            close(client_sd);
+            snprintf(response, MAX_BUFFER, "Error: Failed to read response from server");
+            write(main_clinet_sd, response, strlen(response));
+            return ERROR_NETWORK;
+        }
+        response[responseLen] = '\0';
+        //If there response contains error message from server
+        if(strstr(response, "Error:") != NULL || strstr(response, "File does not exist") != NULL){
+            //Print the server error message
+            close(client_sd);
+            write(main_clinet_sd, response, strlen(response));
+            return ERROR_NETWORK;
+        }
         //Read file size from server(network bytes)
         uint32_t networkFileSize;
         int bytes = read(client_sd, &networkFileSize, sizeof(uint32_t));
@@ -237,7 +254,6 @@ int validateFileExist(char *filename) {
     struct stat st;
     //Return 0, if file does not exist
     if (stat(filename, &st) != 0) {
-        perror(filename);
         return 0;
     }
     //Return 1 if file not exist
@@ -605,7 +621,7 @@ void handleDownlf(int con_sd, char* commandArgs[], int* count){
             //Send the command, path, fileInfo to server2 using communicateWithServer
             int result = communicateWithServer("downlf", destPath, NULL, fileSize, server2_ip, server2_port, response, con_sd);
             if(result != SUCCESS){
-                return;
+                continue;
             }
         }
         //If extension is '.txt'
@@ -633,7 +649,7 @@ void handleDownlf(int con_sd, char* commandArgs[], int* count){
             //Send the command, path, fileInfo to server3 using communicateWithServer
             int result = communicateWithServer("downlf", destPath, NULL, fileSize, server3_ip, server3_port, response, con_sd);
             if(result != SUCCESS){
-                return;
+                continue;
             }
         }
         else{
@@ -668,12 +684,14 @@ void handleRemovef(int con_sd, char* commandArgs[], int* count){
             //Validate file exist on server 1
             if(!validateFileExist(destPath)){
                 snprintf(response, sizeof(response), "File does not exist on Server");
-                break;
+                write(con_sd, response, strlen(response));
+                continue;
             }
             //Remove the file using unlink
             unlink(destPath);
             //Send respond to client
             snprintf(response, sizeof(response), "File removed successfully from Server");
+            write(con_sd, response, strlen(response));
         }
         //If extension is '.pdf'
         else if(strcmp(ext, ".pdf") == 0){
@@ -695,7 +713,11 @@ void handleRemovef(int con_sd, char* commandArgs[], int* count){
                 s1_ptr[2] = '2';
             }
             //Send the command, path, fileInfo to server2 using communicateWithServer
-            communicateWithServer("removef", destPath, NULL, 0, server2_ip, server2_port, response, 0);
+            int result = communicateWithServer("removef", destPath, NULL, 0, server2_ip, server2_port, response, 0);
+            write(con_sd, response, strlen(response));
+            if(result != SUCCESS){
+                continue;
+            }
         }
         //If extension is '.txt'
         else if(strcmp(ext, ".txt") == 0){
@@ -717,7 +739,11 @@ void handleRemovef(int con_sd, char* commandArgs[], int* count){
                 s1_ptr[2] = '3';
             }
             //Send the command, path, fileInfo to server3 using communicateWithServer
-            communicateWithServer("removef", destPath, NULL, 0, server3_ip, server3_port, response, 0);
+            int result = communicateWithServer("removef", destPath, NULL, 0, server3_ip, server3_port, response, 0);
+            write(con_sd, response, strlen(response));
+            if(result != SUCCESS){
+                continue;
+            }
         }
         //If extension is '.zip'
         else if(strcmp(ext, ".zip") == 0){
@@ -739,13 +765,17 @@ void handleRemovef(int con_sd, char* commandArgs[], int* count){
                 s1_ptr[2] = '4';
             }
             //Send the command, path, fileInfo to server4 using communicateWithServer
-            communicateWithServer("removef", destPath, NULL, 0, server4_ip, server4_port, response, 0);
+            int result = communicateWithServer("removef", destPath, NULL, 0, server4_ip, server4_port, response, 0);
+            write(con_sd, response, strlen(response));
+            if(result != SUCCESS){
+                continue;
+            }
         }
         else{
             snprintf(response, sizeof(response), "Error: Invalid extension");
+            write(con_sd, response, strlen(response));
+            continue;
         }
-        //Write the response to client
-        write(con_sd, response, strlen(response));
     }
 }
 
